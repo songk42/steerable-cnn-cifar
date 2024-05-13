@@ -31,12 +31,12 @@ class NoiseTransform(nn.Module):
 def load_data(config, root="./data"):
     if config.dataset == "cifar10":
         transform_list = [
-            v2.ToDtype(torch.float32),
+            v2.ToTensor(),
             v2.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ]
     elif config.dataset == "caltech101":
         transform_list = [
-            v2.ToDtype(torch.float32),
+            v2.ToTensor(),
             v2.Resize((320, 320)),
             v2.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ]
