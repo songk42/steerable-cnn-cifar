@@ -11,6 +11,8 @@ def get_config() -> ml_collections.ConfigDict:
     config.num_train_steps = 1000
     config.log_every_steps = 20
     config.save_every_steps = 100
+    config.augment_data = True
+    config.data_split = (0.8, 0.2)
 
     config.batch_size = 16
 

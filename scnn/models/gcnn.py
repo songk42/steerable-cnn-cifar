@@ -4,7 +4,9 @@ from groupy.gconv.pytorch_gconv import P4MConvP4M, P4MConvZ2
 from groupy.gconv.pytorch_gconv.pooling import plane_group_spatial_max_pooling
 
 class GroupCNN(nn.Module):
-    def __init__(self, num_classes=10):
+    # each layer has ~sqrt(8) fewer parameters than the corresponding layer in the DataAugmentationCNN
+    # the Group CNN paper talks about this somewhere, apparently.
+    def __init__(self, img_size, num_classes=10):
         super(GroupCNN, self).__init__()
         self.layer1 = nn.Sequential(
             P4MConvZ2(in_channels=3, out_channels=18, kernel_size=3, stride=1, padding=1),
@@ -32,16 +34,12 @@ class GroupCNN(nn.Module):
             nn.ReLU()
         )
         self.avgpool = nn.AvgPool3d(1)
-        self.fc1 = nn.Linear(6144, 1536)
-        self.fc2 = nn.Linear(1536, 384)
-        self.fc3 = nn.Linear(384, num_classes)
+        self.fc1 = nn.Linear(192 * img_size, 48 * img_size)
+        self.fc2 = nn.Linear(48 * img_size, 12 * img_size)
+        self.fc3 = nn.Linear(12 * img_size, num_classes)
 
     def forward(self, x):
         x = self.layer1(x)
-        # x = self.layer1_0(x)
-        # print(x.shape)
-        # x = self.layer1_1(x)
-        # x = self.layer1_2(x)
         x = plane_group_spatial_max_pooling(x, ksize=2, stride=2)
         x = self.conv1(x)
         x = self.layer2(x)

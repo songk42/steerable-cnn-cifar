@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class DataAugmentationCNN(nn.Module):
-    def __init__(self, num_classes=10):
+    def __init__(self, img_size, num_classes=10):
         super(DataAugmentationCNN, self).__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=48, kernel_size=3, stride=1, padding="same"),
@@ -31,9 +31,9 @@ class DataAugmentationCNN(nn.Module):
             nn.ReLU()
         )
         self.avgpool = nn.AvgPool2d((1, 1))
-        self.fc1 = nn.Linear(2048, 512)
-        self.fc2 = nn.Linear(512, 128)
-        self.fc3 = nn.Linear(128, num_classes)
+        self.fc1 = nn.Linear(128 * img_size, 32 * img_size)
+        self.fc2 = nn.Linear(32 * img_size, 8 * img_size)
+        self.fc3 = nn.Linear(8 * img_size, num_classes)
 
     def forward(self, x):
         x = self.layer1(x)
