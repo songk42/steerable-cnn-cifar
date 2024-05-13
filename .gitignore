@@ -1,3 +1,4 @@
 data/
 scnn.egg-info
 *.pyc
+__pycache__

@@ -9,6 +9,7 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import tqdm
 import wandb
 
 from scnn.models import utils
@@ -17,6 +18,8 @@ FLAGS = flags.FLAGS
 
 flags.DEFINE_string("workdir", None, "Directory to store model data.")
 flags.DEFINE_bool("use_wandb", True, "Whether to log to Weights & Biases.")
+flags.DEFINE_bool("eval", False, "Evaluate mode if true, otherwise train mode")
+flags.DEFINE_integer("step", 0, "Step to evaluate model at.")
 
 config_flags.DEFINE_config_file(
     "config",
@@ -25,13 +28,40 @@ config_flags.DEFINE_config_file(
     lock_config=True,
 )
 
-def train(config, workdir):
-    device = 0
+def evaluate(classifier, test_loader, device, config):
+    correct = 0
+    total = 0
+    confusion = torch.zeros(config.num_classes, config.num_classes)
+    with torch.no_grad():
+        for data in tqdm.tqdm(test_loader):
+            x = data[0].to(device)
+            y = data[1].to(device)
+            output = classifier(x)
+            _, predicted = torch.max(output.data, 1)
+            total += y.size(0)
+            correct += (predicted == y).sum().item()
+            for i in range(y.size(0)):
+                confusion[y[i], predicted[i]] += 1
+    accuracy = correct / total
+    logging.info(f"Accuracy: {correct} / {total} ({accuracy})")
+    logging.info(f"Confusion matrix (true, predicted): {confusion}")
+
+def evaluate_at_step(config, device, step):
+    train_loader, test_loader = utils.load_data(config)
+    logging.info(f"Evaluating model at step {step}.")
+    classifier = utils.create_model(config).to(device)
+    classifier.load_state_dict(torch.load(os.path.join(FLAGS.workdir, f"model_{step}.pth")))
+    classifier.eval()
+    evaluate(classifier, test_loader, device, config)
+
+def train(config, workdir, device):
     classifier = utils.create_model(config).to(device)
     classifier.train()
     optimizer = optim.Adam(classifier.parameters(), lr=config.lr)
 
     train_loader, test_loader = utils.load_data(config)
+
+    os.makedirs(workdir, exist_ok=True)
 
     logging.info("Training model.")
 
@@ -62,22 +92,7 @@ def train(config, workdir):
 
     logging.info("Evaluating model.")
     classifier.eval()
-    correct = 0
-    total = 0
-    confusion = torch.zeros(config.num_classes, config.num_classes)
-    with torch.no_grad():
-        for data in test_loader:
-            x = data[0].to(device)
-            y = data[1].to(device)
-            output = classifier(x)
-            _, predicted = torch.max(output.data, 1)
-            total += y.size(0)
-            correct += (predicted == y).sum().item()
-            for i in range(y.size(0)):
-                confusion[y[i], predicted[i]] += 1
-    accuracy = correct / total
-    logging.info(f"Accuracy: {correct} / {total} ({accuracy})")
-    logging.info(f"Confusion matrix (true, predicted): {confusion}")
+    evaluate(classifier, test_loader, device, config)
 
 def main(argv):
     if len(argv) > 1:
@@ -89,6 +104,7 @@ def main(argv):
     # Check and freeze config.
     config = FLAGS.config
     config = ml_collections.FrozenConfigDict(config)
+    logging.info(config.to_dict())
 
     # Initialize wandb.
     if FLAGS.use_wandb:
@@ -101,8 +117,11 @@ def main(argv):
             dir=FLAGS.workdir,
         )
 
-    # Start training!
-    train(config, FLAGS.workdir)
+    device = 0 if torch.cuda.is_available() else "cpu"
+    if FLAGS.eval:
+        evaluate_at_step(config, device, FLAGS.step)
+    else:
+        train(config, FLAGS.workdir, device)
 
 
 if __name__ == "__main__":

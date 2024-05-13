@@ -5,28 +5,28 @@ class DataAugmentationCNN(nn.Module):
     def __init__(self, num_classes=10):
         super(DataAugmentationCNN, self).__init__()
         self.layer1 = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=48, kernel_size=3, padding="same", stride=1),
+            nn.Conv2d(in_channels=3, out_channels=48, kernel_size=3, stride=1, padding="same"),
             nn.BatchNorm2d(48),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2)
         )
         self.conv1 = nn.Sequential(
-            nn.Conv2d(in_channels=48, out_channels=64, kernel_size=7, padding=3, stride=2),
+            nn.Conv2d(in_channels=48, out_channels=64, kernel_size=7, stride=2, padding=3),
             nn.BatchNorm2d(64),
             nn.ReLU()
         )
         self.layer2 = nn.Sequential(
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding="same", stride=1),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding="same"),
             nn.BatchNorm2d(64),
             nn.ReLU()
         )
         self.conv2 = nn.Sequential(
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1, stride=2),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU()
         )
         self.layer3 = nn.Sequential(
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding="same", stride=1),
+            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding="same"),
             nn.BatchNorm2d(128),
             nn.ReLU()
         )
