@@ -3,7 +3,7 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 
-from scnn.models.data_aug import DataAugmentationCNN
+from scnn.models.cnn import CNN
 from scnn.models.gcnn import GroupCNN
 
 def load_data(config, root='./data'):
@@ -49,13 +49,17 @@ def load_data(config, root='./data'):
 
 
 def create_model(config: ml_collections.ConfigDict):
-    if config.model == "data_aug":
-        return DataAugmentationCNN(
-            img_size=32,
+    if config.dataset == "cifar10":
+        img_size = 32
+    elif config.dataset == "caltech101":
+        img_size = 320
+    if config.model == "cnn":
+        return CNN(
+            img_size=img_size,
             num_classes=config.num_classes
         )
     elif config.model == "gcnn":
         return GroupCNN(
-            img_size=320,
+            img_size=img_size,
             num_classes=config.num_classes
         )
