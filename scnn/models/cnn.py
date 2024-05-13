@@ -31,9 +31,9 @@ class CNN(nn.Module):
             nn.ReLU()
         )
         self.avgpool = nn.AvgPool2d((1, 1))
-        self.fc1 = nn.Linear(64 * img_size, 16 * img_size)
-        self.fc2 = nn.Linear(16 * img_size, 4 * img_size)
-        self.fc3 = nn.Linear(4 * img_size, num_classes)
+        self.fc1 = nn.Linear(2 * img_size**2, img_size**2 // 2)
+        self.fc2 = nn.Linear(img_size**2 // 2, img_size**2 // 8)
+        self.fc3 = nn.Linear(img_size**2 // 8, num_classes)
 
     def forward(self, x):
         x = self.layer1(x)
