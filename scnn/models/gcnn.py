@@ -34,9 +34,9 @@ class GroupCNN(nn.Module):
             nn.ReLU()
         )
         self.avgpool = nn.AvgPool3d(1)
-        self.fc1 = nn.Linear(192 * img_size, 48 * img_size)
-        self.fc2 = nn.Linear(48 * img_size, 12 * img_size)
-        self.fc3 = nn.Linear(12 * img_size, num_classes)
+        self.fc1 = nn.Linear(6 * img_size**2, 3 * img_size**2 // 2)
+        self.fc2 = nn.Linear(3 * img_size**2 // 2, 3 * img_size // 8)
+        self.fc3 = nn.Linear(3 * img_size // 8, num_classes)
 
     def forward(self, x):
         x = self.layer1(x)
