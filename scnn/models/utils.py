@@ -45,8 +45,7 @@ def load_data(config, root="./data"):
 
     transform_test = v2.Compose(transform_list)
     if config.augment_data:
-        transform_list.append(v2.RandomHorizontalFlip())
-        transform_list.append(v2.RandomVerticalFlip())
+        transform_list.append(v2.RandomRotation(180))
     if config.add_noise:
         transform_list.append(NoiseTransform(config.noise_mean, config.noise_var))
     transform_train = v2.Compose(transform_list)
@@ -55,6 +54,11 @@ def load_data(config, root="./data"):
         train_data = torchvision.datasets.CIFAR10(
             root=root, train=True, download=True, transform=transform_train
         )
+        train_data_no_aug = torchvision.datasets.CIFAR10(
+            root=root, train=True, download=True, transform=transform_test
+        )
+        if config.augment_data:
+            train_data = torch.utils.data.ConcatDataset([train_data, train_data_no_aug])
 
         test_data = torchvision.datasets.CIFAR10(
             root=root, train=False, download=True, transform=transform_test
