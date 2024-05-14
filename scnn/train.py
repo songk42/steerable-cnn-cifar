@@ -1,6 +1,7 @@
 from absl import app
 from absl import flags
 from absl import logging
+from matplotlib import pyplot as plt
 import ml_collections
 from ml_collections import config_flags
 import numpy as np
@@ -9,6 +10,7 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import CosineAnnealingLR
 import tqdm
 import wandb
 
@@ -28,12 +30,20 @@ config_flags.DEFINE_config_file(
     lock_config=True,
 )
 
+def save_image(x, filename):
+    x = x.permute(0, 2, 3, 1).cpu().detach().numpy()
+    x = (x + 1) / 2
+    plt.imsave(filename, x[0])
+
 def evaluate(classifier, test_loader, device, config):
     correct = 0
     total = 0
-    confusion = torch.zeros(config.num_classes, config.num_classes)
+    num_classes = utils.get_num_classes(config)
+    confusion = torch.zeros(num_classes, num_classes)
+    logging.info("Evaluating model.")
     with torch.no_grad():
-        for data in tqdm.tqdm(test_loader):
+        classifier.eval()
+        for data in test_loader:
             x = data[0].to(device)
             y = data[1].to(device)
             output = classifier(x)
@@ -62,39 +72,57 @@ def train(config, workdir, device):
 
     os.makedirs(workdir, exist_ok=True)
 
+    pytorch_total_params = sum(p.numel() for p in classifier.parameters() if p.requires_grad)
+    logging.info(f"Total number of trainable parameters: {pytorch_total_params}")
     logging.info("Training model.")
 
-    if config.model == "denoising_autoencoder":
+    if config.model == "autoencoder":
         logging.info("Pretraining denoising autoencoder.")
         times = []
-        pretrain_optimizer = optim.Adam(classifier.denoiser.parameters(), lr=config.lr)
-        for step in range(config.num_train_steps):
+        pretrain_optimizer = optim.Adam(classifier.autoencoder.parameters(), lr=config.lr)
+        scheduler = CosineAnnealingLR(pretrain_optimizer, T_max=10)
+        for step in range(10):
+            classifier.train()
             batch_losses = []
 
             start_time = time.time()
             for data in train_loader:
                 x = data[0].to(device)
                 y = data[1].to(device)
-                output = classifier.pretrain(x)
+                output = classifier.autoencoder(x)
                 loss = nn.functional.mse_loss(output, x)
 
                 pretrain_optimizer.zero_grad()
                 loss.backward()
                 pretrain_optimizer.step()
 
+                scheduler.step()
+
                 batch_losses.append(loss.item())
             times.append(time.time() - start_time)
 
             if step % config.log_every_steps == 0:
                 logging.info(f"Step {step}: avg loss {torch.mean(torch.tensor(batch_losses))} ({np.mean(np.asarray(times)):.2f}s per step)")
-            if step % config.save_every_steps == 0:
+            if step % config.eval_every_steps == 0:
                 torch.save(classifier.state_dict(), os.path.join(workdir, f"pretrain_{step}.pth"))
+
+        logging.info("Finished pretraining.")
+        logging.info("Generating samples.")
         
-        optimizer = optim.Adam(classifier.log_layer.parameters(), lr=config.lr)
+        for i, data in enumerate(test_loader):
+            x = data[0].to(device)
+            output = classifier.autoencoder(x)
+            if i % 500 == 0:
+                save_image(x, os.path.join(workdir, f"original_{i}.png"))
+                save_image(output, os.path.join(workdir, f"reconstructed_{i}.png"))
+            break
+        
+        optimizer = optim.AdamW(classifier.mlp.parameters(), lr=config.lr, weight_decay=config.weight_decay)
 
     else:
-        optimizer = optim.Adam(classifier.parameters(), lr=config.lr)
+        optimizer = optim.AdamW(classifier.parameters(), lr=config.lr, weight_decay=config.weight_decay)
     times = []
+    scheduler = CosineAnnealingLR(optimizer, T_max=10)
     for step in range(config.num_train_steps):
         batch_losses = []
 
@@ -109,12 +137,15 @@ def train(config, workdir, device):
             loss.backward()
             optimizer.step()
 
+            scheduler.step()
+
             batch_losses.append(loss.item())
         times.append(time.time() - start_time)
 
         if step % config.log_every_steps == 0:
             logging.info(f"Step {step}: avg loss {torch.mean(torch.tensor(batch_losses))} ({np.mean(np.asarray(times)):.2f}s per step)")
-        if step % config.save_every_steps == 0:
+        if step % config.eval_every_steps == 0:
+            evaluate(classifier, test_loader, device, config)
             torch.save(classifier.state_dict(), os.path.join(workdir, f"model_{step}.pth"))
 
     logging.info("Finished training.")

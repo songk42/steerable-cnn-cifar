@@ -1,7 +1,7 @@
 #!/bin/bash
 
-cuda=7
-model="scnn"
+cuda=5
+model="autoencoder"
 dataset="cifar10"
 # dataset="caltech101"
 aug=False
@@ -16,8 +16,10 @@ CUDA_VISIBLE_DEVICES=$cuda python -m scnn.train \
     --config.model=$model \
     --config.dataset=$dataset \
     --config.augment_data=$aug \
-    --config.num_train_steps=200 \
     --config.add_noise=$add_noise \
+    --config.eval_every_steps=20 \
+    --config.num_train_steps=100 \
+    --config.log_every_steps=5 \
     --workdir=$workdir \
     --use_wandb=False
 

@@ -6,9 +6,9 @@ import torchvision
 from torchvision.transforms import v2
 
 from scnn.models.cnn import CNN
-from scnn.models.denoising_autoencoder import DenoisingAutoencoder
+from scnn.models.autoencoder_mlp import AutoencoderMLP
 from scnn.models.gcnn import GroupCNN
-from scnn.models.scnn import C8SteerableCNN
+from scnn.models.scnn import C4SteerableCNN
 
 
 def add_noise(img, mean=0, var=10):
@@ -16,6 +16,7 @@ def add_noise(img, mean=0, var=10):
     sigma = var**0.5
     noise = torch.normal(mean, sigma, (row, col), device=img.device)
     img = img + img * noise
+    img = torch.minimum(torch.maximum(img, torch.zeros_like(img)), torch.ones_like(img))
     return img
 
 
@@ -78,18 +79,24 @@ def load_data(config, root="./data"):
     return train_loader, test_loader
 
 
+def get_num_classes(config):
+    if config.dataset == "cifar10":
+        return 10
+    elif config.dataset == "caltech101":
+        return 101
+
+
 def create_model(config: ml_collections.ConfigDict):
     if config.dataset == "cifar10":
         img_size = 32
-        num_classes = 10
     elif config.dataset == "caltech101":
         img_size = 320
-        num_classes = 101
+    num_classes = get_num_classes(config)
     if config.model == "cnn":
         return CNN(img_size=img_size, num_classes=num_classes)
     elif config.model == "gcnn":
         return GroupCNN(img_size=img_size, num_classes=num_classes)
     elif config.model == "autoencoder":
-        return DenoisingAutoencoder(img_size=img_size, num_classes=num_classes)
+        return AutoencoderMLP(img_size=img_size, num_classes=num_classes)
     elif config.model == "scnn":
-        return C8SteerableCNN(num_classes)
+        return C4SteerableCNN(num_classes)
