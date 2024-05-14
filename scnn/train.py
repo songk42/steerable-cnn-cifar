@@ -57,7 +57,6 @@ def evaluate_at_step(config, device, step):
 def train(config, workdir, device):
     classifier = utils.create_model(config).to(device)
     classifier.train()
-    optimizer = optim.Adam(classifier.parameters(), lr=config.lr)
 
     train_loader, test_loader = utils.load_data(config)
 
@@ -65,6 +64,36 @@ def train(config, workdir, device):
 
     logging.info("Training model.")
 
+    if config.model == "denoising_autoencoder":
+        logging.info("Pretraining denoising autoencoder.")
+        times = []
+        pretrain_optimizer = optim.Adam(classifier.denoiser.parameters(), lr=config.lr)
+        for step in range(config.num_train_steps):
+            batch_losses = []
+
+            start_time = time.time()
+            for data in train_loader:
+                x = data[0].to(device)
+                y = data[1].to(device)
+                output = classifier.pretrain(x)
+                loss = nn.functional.mse_loss(output, x)
+
+                pretrain_optimizer.zero_grad()
+                loss.backward()
+                pretrain_optimizer.step()
+
+                batch_losses.append(loss.item())
+            times.append(time.time() - start_time)
+
+            if step % config.log_every_steps == 0:
+                logging.info(f"Step {step}: avg loss {torch.mean(torch.tensor(batch_losses))} ({np.mean(np.asarray(times)):.2f}s per step)")
+            if step % config.save_every_steps == 0:
+                torch.save(classifier.state_dict(), os.path.join(workdir, f"pretrain_{step}.pth"))
+        
+        optimizer = optim.Adam(classifier.log_layer.parameters(), lr=config.lr)
+
+    else:
+        optimizer = optim.Adam(classifier.parameters(), lr=config.lr)
     times = []
     for step in range(config.num_train_steps):
         batch_losses = []

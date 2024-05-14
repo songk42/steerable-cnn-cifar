@@ -1,10 +1,10 @@
 #!/bin/bash
 
 cuda=7
-model="autoencoder"
+model="scnn"
 dataset="cifar10"
 # dataset="caltech101"
-aug=True
+aug=False
 add_noise=True
 workdir="/home/songk/workdirs/scnn/"$model"_"$dataset
 if [ $aug = "True" ]; then

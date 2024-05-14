@@ -8,6 +8,7 @@ from torchvision.transforms import v2
 from scnn.models.cnn import CNN
 from scnn.models.denoising_autoencoder import DenoisingAutoencoder
 from scnn.models.gcnn import GroupCNN
+from scnn.models.scnn import C8SteerableCNN
 
 
 def add_noise(img, mean=0, var=10):
@@ -44,6 +45,7 @@ def load_data(config, root="./data"):
     transform_test = v2.Compose(transform_list)
     if config.augment_data:
         transform_list.append(v2.RandomHorizontalFlip())
+        transform_list.append(v2.RandomVerticalFlip())
     if config.add_noise:
         transform_list.append(NoiseTransform(config.noise_mean, config.noise_var))
     transform_train = v2.Compose(transform_list)
@@ -89,3 +91,5 @@ def create_model(config: ml_collections.ConfigDict):
         return GroupCNN(img_size=img_size, num_classes=num_classes)
     elif config.model == "autoencoder":
         return DenoisingAutoencoder(img_size=img_size, num_classes=num_classes)
+    elif config.model == "scnn":
+        return C8SteerableCNN(num_classes)
