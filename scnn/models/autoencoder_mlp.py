@@ -11,9 +11,18 @@ class AutoencoderMLP(nn.Module):
         super(AutoencoderMLP, self).__init__()
         
         self.autoencoder = Autoencoder(3)
-        encoder_output_size = (img_size//8)**2 * 64
+        # self.autoencoders = nn.Sequential(
+        #     *[Autoencoder(3) for _ in range(num_autoencoders)]
+        # )
+        encoder_output_size = (img_size//4)**2 * 64
         self.mlp = nn.Sequential(
             nn.Linear(encoder_output_size, 128),
+            torch.nn.BatchNorm1d(128),
+            nn.Linear(128, 128),
+            torch.nn.BatchNorm1d(128),
+            nn.Linear(128, 128),
+            torch.nn.BatchNorm1d(128),
+            nn.Linear(128, 128),
             torch.nn.BatchNorm1d(128),
             torch.nn.ELU(inplace=True),
             torch.nn.Dropout(0.5),  # Dropout before the final layer

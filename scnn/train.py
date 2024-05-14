@@ -51,10 +51,10 @@ def evaluate(classifier, test_loader, device, config):
             total += y.size(0)
             correct += (predicted == y).sum().item()
             for i in range(y.size(0)):
-                confusion[y[i], predicted[i]] += 1
+                confusion[predicted[i], y[i]] += 1
     accuracy = correct / total
     logging.info(f"Accuracy: {correct} / {total} ({accuracy})")
-    logging.info(f"Confusion matrix (true, predicted): {confusion}")
+    logging.info(f"Confusion matrix (predicted, true): {confusion}")
 
 def evaluate_at_step(config, device, step):
     train_loader, test_loader = utils.load_data(config)
@@ -79,7 +79,7 @@ def train(config, workdir, device):
     if config.model == "autoencoder":
         logging.info("Pretraining denoising autoencoder.")
         times = []
-        pretrain_optimizer = optim.Adam(classifier.autoencoder.parameters(), lr=config.lr)
+        pretrain_optimizer = optim.Adam(classifier.autoencoder.parameters(), lr=config.pretrain_lr)
         scheduler = CosineAnnealingLR(pretrain_optimizer, T_max=10)
         for step in range(10):
             classifier.train()
@@ -109,14 +109,18 @@ def train(config, workdir, device):
         logging.info("Finished pretraining.")
         logging.info("Generating samples.")
         
+        classifier.eval()
+        batch_losses = []
         for i, data in enumerate(test_loader):
             x = data[0].to(device)
             output = classifier.autoencoder(x)
-            if i % 500 == 0:
-                save_image(x, os.path.join(workdir, f"original_{i}.png"))
-                save_image(output, os.path.join(workdir, f"reconstructed_{i}.png"))
-            break
+            loss = nn.functional.mse_loss(output, x)
+            batch_losses.append(loss.item())
+        logging.info(f"Avg loss {torch.mean(torch.tensor(batch_losses))} ({np.mean(np.asarray(times)):.2f}s per step)")
         
+        classifier.train()
+        for param in classifier.autoencoder.parameters():
+            param.requires_grad = False
         optimizer = optim.AdamW(classifier.mlp.parameters(), lr=config.lr, weight_decay=config.weight_decay)
 
     else:
