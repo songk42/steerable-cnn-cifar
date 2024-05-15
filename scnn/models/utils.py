@@ -43,35 +43,49 @@ def load_data(config, root="./data"):
             v2.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ]
 
-    transform_test = v2.Compose(transform_list)
-    if config.augment_data:
-        transform_list.append(v2.RandomRotation(180))
+    # transform_regular = v2.Compose(transform_list)
+    # transform_list.append(v2.RandomRotation(180))
+    # transform_aug = v2.Compose(transform_list)
+    # if config.add_noise:
+    #     transform_list.append(NoiseTransform(config.noise_mean, config.noise_var))
+    transform_list_train = transform_list[:]
+    transform_list_test_noaug = transform_list[:]
+    transform_list_test_aug = transform_list[:]
+    transform_list_test_aug.append(v2.RandomRotation(180))
     if config.add_noise:
-        transform_list.append(NoiseTransform(config.noise_mean, config.noise_var))
-    transform_train = v2.Compose(transform_list)
+        transform_list_train.append(NoiseTransform(config.noise_mean, config.noise_var))
+    transform_list_train_noaug = transform_list_train[:]
+    if config.augment_data:
+        transform_list_train.append(v2.RandomRotation(180))
 
     if config.dataset == "cifar10":
-        train_data = torchvision.datasets.CIFAR10(
-            root=root, train=True, download=True, transform=transform_train
+        train_data_aug = torchvision.datasets.CIFAR10(
+            root=root, train=True, download=True, transform=v2.Compose(transform_list_train)
         )
         train_data_no_aug = torchvision.datasets.CIFAR10(
-            root=root, train=True, download=True, transform=transform_test
+            root=root, train=True, download=True, transform=v2.Compose(transform_list_train_noaug)
         )
         if config.augment_data:
-            train_data = torch.utils.data.ConcatDataset([train_data, train_data_no_aug])
+            train_data = torch.utils.data.ConcatDataset([train_data_aug, train_data_no_aug])
+        else:
+            train_data = train_data_no_aug
 
-        test_data = torchvision.datasets.CIFAR10(
-            root=root, train=False, download=True, transform=transform_test
+        test_data_aug = torchvision.datasets.CIFAR10(
+            root=root, train=False, download=True, transform=v2.Compose(transform_list_test_aug)
         )
-    elif config.dataset == "caltech101":
-        dataset = torchvision.datasets.Caltech101(
-            root=root, download=True, transform=transform_train
+        test_data_noaug = torchvision.datasets.CIFAR10(
+            root=root, train=False, download=True, transform=v2.Compose(transform_list_test_noaug)
         )
-        num_train = int(config.data_split[0] * len(dataset))
-        num_test = len(dataset) - num_train
-        train_data, test_data = torch.utils.data.random_split(
-            dataset, [num_train, num_test]
-        )
+        test_data = torch.utils.data.ConcatDataset([test_data_aug, test_data_noaug])
+    # elif config.dataset == "caltech101":
+    #     dataset = torchvision.datasets.Caltech101(
+    #         root=root, download=True, transform=transform_train
+    #     )
+    #     num_train = int(config.data_split[0] * len(dataset))
+    #     num_test = len(dataset) - num_train
+    #     train_data, test_data = torch.utils.data.random_split(
+    #         dataset, [num_train, num_test]
+    #     )
     
     train_loader = torch.utils.data.DataLoader(
         train_data, batch_size=config.batch_size, shuffle=True
