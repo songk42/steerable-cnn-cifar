@@ -76,7 +76,10 @@ def load_data(config, root="./data"):
         test_data_noaug = torchvision.datasets.CIFAR10(
             root=root, train=False, download=True, transform=v2.Compose(transform_list_test_noaug)
         )
-        test_data = torch.utils.data.ConcatDataset([test_data_aug, test_data_noaug])
+        if config.augment_test:
+            test_data = torch.utils.data.ConcatDataset([test_data_aug, test_data_noaug])
+        else:
+            test_data = test_data_noaug
     # elif config.dataset == "caltech101":
     #     dataset = torchvision.datasets.Caltech101(
     #         root=root, download=True, transform=transform_train

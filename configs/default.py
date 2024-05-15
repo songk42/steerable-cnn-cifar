@@ -13,6 +13,7 @@ def get_config() -> ml_collections.ConfigDict:
     config.log_every_steps = 20
     config.eval_every_steps = 50
     config.augment_data = True
+    config.augment_test = False
     config.data_split = (0.8, 0.2)
     config.batch_size = 128
 
